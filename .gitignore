@@ -109,4 +109,5 @@ dist
 
 logs/
 logs/optedin.json
+src/config.json
 /package-lock.json
