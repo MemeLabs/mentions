@@ -107,7 +107,7 @@ dist
 .vscode/
 .vs/
 
-logs/
+logs/*
 logs/optedin.json
 src/config.json
 /package-lock.json

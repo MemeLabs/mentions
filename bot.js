@@ -27,29 +27,30 @@ optedinJSON = JSON.parse(fs.readFileSync('./logs/optedin.json').toString())
 //  File Manipulation
 //
 
-var usersDirectoryArray = [];
-var usersDirectory = fs.readdirSync('./logs/')
-const EvalOptInUsers = () => {
-  usersDirectory = fs.readdirSync('./logs/')
-  for (i in usersDirectory) {
-    // this skips an iteration of the loop if it is the optedin.json file
-    if (usersDirectory[i] === 'optedin.json') { continue }
-    // adds
-    usersDirectoryArray.push(usersDirectory[i].split('.')[0])
+// Users Directory Object
+var logDirectory = {
+  Array: [],
+  eval: function () {
+    usersDirectory = fs.readdirSync('./logs/')
+    for (i in usersDirectory) {
+      // this skips an iteration of the loop if it is the optedin.json file
+      if (usersDirectory[i] === 'optedin.json') { continue }
+      // adds
+      this.Array.push(usersDirectory[i].split('.')[0])
+    }
   }
-}
-EvalOptInUsers()
+}.eval()
 
 //
 //  WebSocket
 //
 
-// Chat tools
+// Chat tools object
 var chatTools = {
-  sendChatMessage : (message) => {
+  sendChatMessage: (message) => {
     ws.send(`MSG {"data":"${message}"}`)
   },
-  sendPrivateMessage : (username, message) => {
+  sendPrivateMessage: (username, message) => {
     ws.send(`PRIVMSG {"nick":"${username}", "data":"${message}"}`)
   }
 }
@@ -67,7 +68,7 @@ ws.on('close', () => {
 })
 
 // On WebSocket Messaged Received
-ws.on('message', (e) => {
+ws.on('message', (e) => { try {
   // Example of e.data
   // JOIN {"nick":"Fatal","features":[],"timestamp":1577117797198}
   const WebSocketMessagePrefix = e.split(' ', 1).toString()
@@ -83,24 +84,26 @@ ws.on('message', (e) => {
     args = message.data.split(' ')
     if (args.length === 1) {
       if (usersDirectoryArray.includes(message.nick)) {
-        sendLogs(message)
+        log_link.grabLog(message.nick, chatTools)
       } else if (!(optedinJSON.users.includes(message.nick))) {
-        sendPrivateMessage(message.nick, 'You do not have a file. If you would like to be logged type `/w mentions help` to learn more about it.')
+        chatTools.sendPrivateMessage(message.nick, 'You do not have a file. If you would like to be logged type `/w mentions help` to learn more about it.')
       }
     }
 
     switch (args[1]) {
       case "enable":
         opting.enable(message.nick, optedinJSON, chatTools)
-        EvalOptInUsers()
+        logDirectory.eval()
         break;
       case "disable":
         opting.disable(message.nick, optedinJSON, ws)
-        EvalOptInUsers()
+        logDirectory.eval()
         break;
       case "help":
-        log_link.grabLog(message.nick, ws)
+        log_link.grabLog(message.nick, chatTools)
         break;
+      default:
+        log_link.grabLog(message.nick, chatTools)
     }
   }
 
@@ -109,11 +112,11 @@ ws.on('message', (e) => {
     switch (args[0]) {
       case "enable":
         opting.enable(message.nick, optedinJSON, chatTools)
-        EvalOptInUsers()
+        logDirectory.eval()
         break;
       case "disable":
         opting.disable(message.nick, optedinJSON, chatTools)
-        EvalOptInUsers()
+        logDirectory.eval()
         break;
       case "clear":
         clear_log.clear(message.nick, chatTools)
@@ -124,6 +127,9 @@ ws.on('message', (e) => {
       case "help":
         chatTools.sendPrivateMessage(message.nick, 'Commands: `enable`,`disable`,`list`,`clear`,`help`')
         break;
+      case "test":
+        chatTools.sendPrivateMessage(message.nick, logDirectory.Array)
     }
   }
+} catch (e) {console.log(e)}
 })
