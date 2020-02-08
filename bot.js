@@ -7,6 +7,7 @@ const log_link = require('./src/tools/log_link.js')
 // from ./commands/
 const clear_log = require('./src/commands/clear.js')
 const opting = require('./src/commands/opting.js')
+const help = require('./src/commands/help.js')
 
 // Config
 const config = JSON.parse(fs.readFileSync('./src/config.json'))
@@ -111,7 +112,7 @@ rws.addEventListener('message', (e) => {
           logDirectory.eval()
           break;
         case "help":
-          log_link.grabLog(message.nick, chatTools)
+          help.send(message, chatTools)
           break;
         default:
           log_link.grabLog(message.nick, chatTools)
@@ -138,7 +139,7 @@ rws.addEventListener('message', (e) => {
           log_link.grabLog(message.nick, chatTools)
           break;
         case "help":
-          chatTools.sendPrivateMessage(message.nick, 'Commands: `enable`,`disable`,`list`,`clear`,`help`')
+          help.send(message, chatTools)
           break;
         default:
           chatTools.sendChatMessage(message.nick, "Unknown command. Type `/w mentions help` to learn more.")
