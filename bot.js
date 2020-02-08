@@ -12,19 +12,23 @@ const opting = require('./src/commands/opting.js')
 const config = JSON.parse(fs.readFileSync('./src/config.json'))
 const JWT_TOKEN = config.jwt_token
 
+// WebSocket
 const WebSocket = require('ws');
-const ws = new WebSocket('wss://chat.strims.gg/ws', { headers: { Cookie: `;jwt=${JWT_TOKEN}` } });
+const ReconnectingWebSocket = require('reconnecting-websocket')
 
 //
 //  JSON
 //
 
-optedinJSON = JSON.parse(fs.readFileSync('./logs/optedin.json').toString())
-
-
+var optedIn = {
+  JSON: JSON.parse(fs.readFileSync('./logs/optedin.json').toString()),
+  eval: () => {
+    this.JSON = JSON.parse(fs.readFileSync('./logs/optedin.json').toString())
+  }
+}
 
 //
-//  File Manipulation
+//  File Management
 //
 
 // Users Directory Object
@@ -39,97 +43,113 @@ var logDirectory = {
       this.Array.push(usersDirectory[i].split('.')[0])
     }
   }
-}.eval()
+}
+logDirectory.eval()
 
 //
 //  WebSocket
 //
 
+const RWSoptions = {
+  WebSocket: WebSocket,
+  connectionTimeout: 10000
+}
+
+const rws = new ReconnectingWebSocket('wss://chat.strims.gg/ws', { headers: { Cookie: `;jwt=${JWT_TOKEN}`}}, RWSoptions);
+
 // Chat tools object
 var chatTools = {
   sendChatMessage: (message) => {
-    ws.send(`MSG {"data":"${message}"}`)
+    rws.send(`MSG {"data":"${message}"}`)
   },
   sendPrivateMessage: (username, message) => {
-    ws.send(`PRIVMSG {"nick":"${username}", "data":"${message}"}`)
+    rws.send(`PRIVMSG {"nick":"${username}", "data":"${message}"}`)
   }
 }
 
 
 // On WebSocket Connect
-ws.on('open', () => {
-  console.log('Connected and ready.')
+rws.addEventListener('open', () => {
+  let time = new Date().toLocaleString()
+  console.log(`[${time}] CONNECTED`)
 })
 
-// On Websocket Disconnect
-ws.on('close', () => {
-  let time = new Date().toLocaleString()
-  console.log(`[${time}] DISCONNECTED`)
-})
 
 // On WebSocket Messaged Received
-ws.on('message', (e) => { try {
-  // Example of e.data
-  // JOIN {"nick":"Fatal","features":[],"timestamp":1577117797198}
-  const WebSocketMessagePrefix = e.split(' ', 1).toString()
-  const WebSocketMessage = e
+rws.addEventListener('message', (e) => {
+  try {
+    // Example of e.data
+    // JOIN {"nick":"Fatal","features":[],"timestamp":1577117797198}
+    const WebSocketMessagePrefix = e.data.split(' ', 1).toString()
+    const WebSocketMessage = e.data
 
-  // Creating JSON object with the websocket message minus the 'NAMES', 'JOIN', 'LEAVE', 'MSG', 'PRIVMSG' before the array
-  const message = JSON.parse(WebSocketMessage.substr(WebSocketMessagePrefix.length + 1))
+    // Creating JSON object with the websocket message minus the 'NAMES', 'JOIN', 'LEAVE', 'MSG', 'PRIVMSG' before the array
+    const message = JSON.parse(WebSocketMessage.substr(WebSocketMessagePrefix.length + 1))
 
-  // Adding new JSON key and value for type of message sent, example: 'NAMES', 'JOIN', 'LEAVE', 'MSG', 'PRIVMSG'
-  message.type = WebSocketMessagePrefix
+    // Adding new JSON key and value for type of message sent, example: 'NAMES', 'JOIN', 'LEAVE', 'MSG', 'PRIVMSG'
+    message.type = WebSocketMessagePrefix
 
-  if (message.type === 'MSG' && message.data.startsWith('!mentions')) {
-    args = message.data.split(' ')
-    if (args.length === 1) {
-      if (usersDirectoryArray.includes(message.nick)) {
-        log_link.grabLog(message.nick, chatTools)
-      } else if (!(optedinJSON.users.includes(message.nick))) {
-        chatTools.sendPrivateMessage(message.nick, 'You do not have a file. If you would like to be logged type `/w mentions help` to learn more about it.')
+    if (message.type === 'MSG' && message.data.startsWith('!mentions')) {
+      args = message.data.split(' ')
+      if (args.length === 1) {
+        if (logDirectory.Array.includes(message.nick)) {
+          log_link.grabLog(message.nick, chatTools)
+        } else if (!(optedIn.JSON["users"].includes(message.nick))) {
+          chatTools.sendPrivateMessage(message.nick, 'You do not have a file. If you would like to be logged type `/w mentions help` to learn more about it.')
+        }
+      }
+
+      switch (args[1]) {
+        case "enable":
+          opting.enable(message.nick, optedIn.JSON, chatTools)
+          optedIn.eval()
+          logDirectory.eval()
+          break;
+        case "disable":
+          opting.disable(message.nick, optedIn.JSON, chatTools)
+          optedIn.eval()
+          logDirectory.eval()
+          break;
+        case "help":
+          log_link.grabLog(message.nick, chatTools)
+          break;
+        default:
+          log_link.grabLog(message.nick, chatTools)
       }
     }
 
-    switch (args[1]) {
-      case "enable":
-        opting.enable(message.nick, optedinJSON, chatTools)
-        logDirectory.eval()
-        break;
-      case "disable":
-        opting.disable(message.nick, optedinJSON, ws)
-        logDirectory.eval()
-        break;
-      case "help":
-        log_link.grabLog(message.nick, chatTools)
-        break;
-      default:
-        log_link.grabLog(message.nick, chatTools)
+    if (message.type === 'PRIVMSG') {
+      args = message.data.split(' ')
+      switch (args[0]) {
+        case "enable":
+          opting.enable(message.nick, optedIn.JSON, chatTools)
+          optedIn.eval()
+          logDirectory.eval()
+          break;
+        case "disable":
+          opting.disable(message.nick, optedIn.JSON, chatTools)
+          optedIn.eval()
+          logDirectory.eval()
+          break;
+        case "clear":
+          clear_log.clear(message.nick, chatTools)
+          break;
+        case "list":
+          log_link.grabLog(message.nick, chatTools)
+          break;
+        case "help":
+          chatTools.sendPrivateMessage(message.nick, 'Commands: `enable`,`disable`,`list`,`clear`,`help`')
+          break;
+        default:
+          chatTools.sendChatMessage(message.nick, "Unknown command. Type `/w mentions help` to learn more.")
+      }
     }
-  }
+  } catch (e) { console.log(e) }
+})
 
-  if (message.type === 'PRIVMSG') {
-    args = message.data.split(' ')
-    switch (args[0]) {
-      case "enable":
-        opting.enable(message.nick, optedinJSON, chatTools)
-        logDirectory.eval()
-        break;
-      case "disable":
-        opting.disable(message.nick, optedinJSON, chatTools)
-        logDirectory.eval()
-        break;
-      case "clear":
-        clear_log.clear(message.nick, chatTools)
-        break;
-      case "list":
-        log_link.grabLog(message.nick, chatTools)
-        break;
-      case "help":
-        chatTools.sendPrivateMessage(message.nick, 'Commands: `enable`,`disable`,`list`,`clear`,`help`')
-        break;
-      case "test":
-        chatTools.sendPrivateMessage(message.nick, logDirectory.Array)
-    }
-  }
-} catch (e) {console.log(e)}
+// On Websocket Disconnect
+rws.addEventListener('close', () => {
+  rws.reconnect()
+  let time = new Date().toLocaleString()
+  console.log(`[${time}] DISCONNECTED`)
 })

@@ -1,50 +1,57 @@
+const WebSocket = require('ws')
+const ReconnectingWebSocket = require('reconnecting-websocket')
 const fs = require('fs')
 
-const WebSocket = require('ws');
-const ws = new WebSocket('wss://chat.strims.gg/ws');
 
-ws.on('open', () => {
-  console.log('Connected.')
-})
-
-var usersDirectoryArray = [];
-var usersDirectory = fs.readdirSync('./logs/')
-for (i in usersDirectory) {
-  // this skips an iteration of the loop if it is the optedin.json file
-  if (usersDirectory[i] === 'optedin.json') { continue }
-  // adds
-  usersDirectoryArray.push(usersDirectory[i].split('.')[0])
+var logDirectory = {
+  Array: [],
+  eval: function () {
+    usersDirectory = fs.readdirSync('./logs/')
+    for (i in usersDirectory) {
+      // this skips an iteration of the loop if it is the optedin.json file
+      if (usersDirectory[i] === 'optedin.json') { continue }
+      // adds
+      this.Array.push(usersDirectory[i].split('.')[0])
+    }
+  }
 }
+logDirectory.eval()
 
-ws.on('close', () => {
-  var today = new Date();
-  var dateTime = today.getFullYear() + '/' + (today.getMonth() + 1) + '/' + today.getDate() + ' ' + today.getHours() + ":" + today.getMinutes();
+//
+//  WebSocket
+//
 
-  console.log('[' + dateTime + ']' + 'DISCONNECTED.')
+const rws = new ReconnectingWebSocket('wss://chat.strims.gg/ws', [], {WebSocket: WebSocket, connectionTimeout: 10000});
+
+rws.addEventListener('open', () => {
+  let time = new Date().toLocaleString()
+  console.log(`[${time}] CONNECTED`)
 })
 
-ws.on('message', (e) => {
+
+rws.addEventListener('message', (e) => {
   // Example of e.data
   // JOIN {"nick":"Fatal","features":[],"timestamp":1577117797198}
-  const WebSocketMessagePrefix = e.split(' ', 1).toString()
-  const WebSocketMessage = e
-
-  var optedinJSON = JSON.parse(fs.readFileSync('./logs/optedin.json').toString())
-
+  const WebSocketMessagePrefix = e.data.split(' ', 1).toString()
+  const WebSocketMessage = e.data
+  
+  
   // Creating JSON object with the websocket message minus the 'NAMES', 'JOIN', 'LEAVE', 'MSG', 'PRIVMSG' before the array
   const message = JSON.parse(WebSocketMessage.substr(WebSocketMessagePrefix.length + 1))
-
+  
   // Adding new JSON key and value for type of message sent, example: 'NAMES', 'JOIN', 'LEAVE', 'MSG', 'PRIVMSG'
   message.type = WebSocketMessagePrefix
-
+  
   const checkArray = (name) => {
     if (message.data.includes(name)) {
-      if (!(usersDirectoryArray.includes(`${name}.txt`))) {fs.writeFileSync(`./logs/${name}.txt`, '')}
+      logDirectory.eval()
+      
+      if (!(logDirectory.Array.includes(`${name}.txt`))) {fs.writeFileSync(`./logs/${name}.txt`, '')}
+      
       var userFileArray = fs.readFileSync(`./logs/${name}.txt`, 'utf-8').split('\r\n').filter(Boolean)
+      
       if (userFileArray.length === 5) {
         userFileArray.shift()
-        var today = new Date();
-        var dateTime = today.getFullYear() + '/' + (today.getMonth() + 1) + '/' + today.getDate() + ' ' + today.getHours() + ":" + today.getMinutes() + today.getSeconds();
         userFileArray.push(`${message.timestamp} ${message.nick}: ${message.data}`)
         fs.writeFileSync(`./logs/${name}.txt`, userFileArray.join(`\r\n`))
       } else {
@@ -52,8 +59,19 @@ ws.on('message', (e) => {
       }
     }
   }
-
+  
   if (message.type === 'MSG') {
+    var optedinJSON = JSON.parse(fs.readFileSync('./logs/optedin.json').toString())
     optedinJSON.users.some(checkArray)
+    if (message.data.includes('mentions close')){
+      rws.close()
+    }
   }
+
+})
+
+rws.addEventListener('close', () => {
+  rws.reconnect()
+  let time = new Date().toLocaleString()
+  console.log(`[${time}] DISCONNECTED`)
 })

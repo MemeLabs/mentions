@@ -5,6 +5,7 @@
   "main": "bot.js",
   "dependencies": {
     "date-diff-js": "^1.0.4",
+    "reconnecting-websocket": "^4.4.0",
     "request": "^2.88.0",
     "ws": "^7.2.1"
   },
