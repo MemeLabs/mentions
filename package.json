@@ -1,7 +1,7 @@
 {
   "name": "mentionsbot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Strims.gg chat mentions logging/bot",
   "main": "bot.js",
   "dependencies": {
     "date-diff-js": "^1.0.4",

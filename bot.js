@@ -17,6 +17,38 @@ const JWT_TOKEN = config.jwt_token
 const WebSocket = require('ws');
 const ReconnectingWebSocket = require('reconnecting-websocket')
 
+
+//
+//  File Management
+//
+
+// check if logs folder exists.
+// if not, create logs folder and optedin.json file
+// if it does, create array of files inside logs folder
+
+try {
+  if (!(fs.existsSync('./logs/'))) {
+    fs.mkdirSync('./logs/')
+    fs.appendFileSync('./logs/optedin.json', '{"users":[]}')
+  }
+} catch (e) { console.error(e) }
+
+
+// Users Directory Object
+var logDirectory = {
+  Array: [],
+  eval: function () {
+    var usersDirectory = fs.readdirSync('./logs/')
+    for (i in usersDirectory) {
+      // this skips an iteration of the loop if it is the optedin.json file
+      if (usersDirectory[i] === 'optedin.json') { continue }
+      // adds
+      this.Array.push(usersDirectory[i].split('.')[0])
+    }
+  }
+}
+logDirectory.eval()
+
 //
 //  JSON
 //
@@ -29,31 +61,12 @@ var optedIn = {
 }
 
 //
-//  File Management
-//
-
-// Users Directory Object
-var logDirectory = {
-  Array: [],
-  eval: function () {
-    usersDirectory = fs.readdirSync('./logs/')
-    for (i in usersDirectory) {
-      // this skips an iteration of the loop if it is the optedin.json file
-      if (usersDirectory[i] === 'optedin.json') { continue }
-      // adds
-      this.Array.push(usersDirectory[i].split('.')[0])
-    }
-  }
-}
-logDirectory.eval()
-
-//
 //  WebSocket
 //
 
 const RWSoptions = {
   WebSocket: WebSocket,
-  connectionTimeout: 10000
+  connectionTimeout: 20000
 }
 
 const rws = new ReconnectingWebSocket('wss://chat.strims.gg/ws', { headers: { Cookie: `;jwt=${JWT_TOKEN}`}}, RWSoptions);
