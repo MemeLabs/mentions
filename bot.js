@@ -155,7 +155,7 @@ rws.addEventListener('message', (e) => {
           help.send(message, chatTools)
           break;
         default:
-          chatTools.sendChatMessage(message.nick, "Unknown command. Type `/w mentions help` to learn more.")
+          chatTools.sendPrivateMessage(message.nick, "Unknown command. Type `/w mentions help` to learn more.")
       }
     }
   } catch (e) { console.log(e) }
