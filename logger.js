@@ -92,7 +92,8 @@ rws.addEventListener('message', (e) => {
           if (bool) {
             writeLog(name, message)
           } else if (!bool) {
-            fs.appendFile(`./logs/${name}.txt`)
+            fs.appendFileSync(`./logs/${name}.txt`, '')
+            writeLog(name, message)
           }
         })
       }
