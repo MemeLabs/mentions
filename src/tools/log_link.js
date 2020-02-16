@@ -30,7 +30,8 @@ module.exports = {
         for (i in log) {
           timestamp = format_timestamp.format(log[i].split(' ')[0])
           message = log[i].substr(log[i].split(' ')[0].length + 1)
-          log[i] = `${timestamp} | ${message}`
+          preformat = `${timestamp} | ${message}`
+          log[i] = `${timestamp}` + ' '.repeat(13 - preformat.split('|')[0].length) + `| ${message}`
         }
 
         // Joining newly converted lines by a new line
