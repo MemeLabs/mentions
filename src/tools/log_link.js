@@ -43,7 +43,7 @@ module.exports = {
           if (err) {
             console.error(err)
           } else {
-            chatTools.sendPrivateMessage(username, body)
+            chatTools.sendPrivateMessage(username, 'https://poubelle.xyz/mentions/?url=' + body)
           }
         }).form().append('file', file, {
           filename: `${username}.txt`,
